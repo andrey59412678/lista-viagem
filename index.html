@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f4efe6">
+<title>Lista da viagem</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧳</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4efe6;
+    --card: #fffdf8;
+    --ink: #2b2620;
+    --muted: #8a7f70;
+    --line: #e6ddcd;
+    --accent: #d2603a;
+    --accent-ink: #fff;
+    --done: #b8ad9c;
+    --danger: #b3412b;
+    --shadow: 0 1px 2px rgba(60,40,20,.06), 0 4px 14px rgba(60,40,20,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1916;
+      --card: #26221e;
+      --ink: #f1e9dc;
+      --muted: #a39684;
+      --line: #3a342d;
+      --accent: #e9774f;
+      --accent-ink: #1c1916;
+      --done: #6d6457;
+      --danger: #e46a50;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 16px/1.4 Inter, system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 120px; }
+
+  /* gate */
+  #gate { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+  #gate form { background: var(--card); padding: 28px 24px; border-radius: 18px; box-shadow: var(--shadow); width: 100%; max-width: 340px; text-align: center; }
+  #gate h1 { font: 700 26px/1.15 Fraunces, Georgia, serif; margin: 6px 0 18px; }
+  #gate input { width: 100%; text-align: center; font-size: 28px; letter-spacing: .4em; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); outline: none; }
+  #gate input:focus { border-color: var(--accent); }
+  #gate .err { color: var(--danger); font-size: 14px; min-height: 20px; margin-top: 10px; }
+  .emoji { font-size: 40px; }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  header h1 { font: 700 clamp(24px, 6vw, 32px)/1.1 Fraunces, Georgia, serif; margin: 0; }
+  .status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; padding-top: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #6aa86a; }
+  .dot.saving { background: #d9a43a; }
+  .dot.off { background: var(--danger); }
+
+  .add { display: flex; gap: 8px; position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 12px; flex-wrap: wrap; }
+  .add input { flex: 1 1 200px; min-width: 0; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); outline: none; }
+  .add input:focus { border-color: var(--accent); }
+  .add select { flex: 0 1 160px; min-width: 0; padding: 12px 10px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card); }
+  .btn { border: 0; border-radius: 12px; padding: 12px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1.5px dashed var(--line); width: 100%; padding: 14px; }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--muted); }
+
+  .cat { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); margin: 14px 0; overflow: hidden; }
+  .cat-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 8px 14px; }
+  .cat-head h2 { font: 600 17px/1.2 Fraunces, Georgia, serif; margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .cat-head .count { font-size: 12px; color: var(--muted); }
+  .cat.uncat .cat-head h2 { color: var(--muted); }
+  .icon { border: 0; background: transparent; color: var(--muted); padding: 6px 8px; border-radius: 8px; line-height: 1; font-size: 16px; }
+  .icon:hover { background: var(--bg); color: var(--ink); }
+  .cat-handle { cursor: grab; touch-action: none; }
+
+  ul.items { list-style: none; margin: 0; padding: 0 0 6px; min-height: 40px; }
+  ul.items:empty::before { content: "arraste itens pra cá"; display: block; text-align: center; color: var(--done); font-size: 13px; padding: 8px 0 10px; }
+  li.item { display: flex; align-items: center; gap: 4px; padding: 4px 6px 4px 4px; border-top: 1px solid var(--line); background: var(--card); }
+  li.item:first-child { border-top: 0; }
+  .handle { cursor: grab; color: var(--done); padding: 10px 6px; touch-action: none; user-select: none; font-size: 14px; }
+  .check { width: 22px; height: 22px; flex: 0 0 22px; accent-color: var(--accent); margin: 0 6px 0 0; }
+  .text { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; }
+  li.done .text { color: var(--done); text-decoration: line-through; }
+  .sortable-ghost { opacity: .35; }
+  .sortable-chosen { box-shadow: var(--shadow); }
+
+  /* sheet */
+  .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: flex-end; justify-content: center; z-index: 20; }
+  .sheet-bg.open { display: flex; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 80dvh; overflow: auto; }
+  @media (min-width: 600px) { .sheet-bg { align-items: center; } .sheet { border-radius: 18px; } }
+  .sheet h3 { margin: 0 0 4px; font: 600 18px/1.25 Fraunces, Georgia, serif; overflow-wrap: anywhere; }
+  .sheet .sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+  .sheet .opt { display: block; width: 100%; text-align: left; border: 0; background: var(--bg); padding: 12px 14px; border-radius: 10px; margin: 6px 0; }
+  .sheet .opt.cur { outline: 1.5px solid var(--accent); }
+  .sheet .opt.danger { color: var(--danger); }
+  .sheet .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 2px 2px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <form id="gate-form" autocomplete="off">
+    <div class="emoji">🧳</div>
+    <h1>Lista do que não pode faltar na viagem</h1>
+    <input id="pwd" type="password" inputmode="numeric" maxlength="12" placeholder="••••" autofocus aria-label="Senha">
+    <div class="err" id="gate-err"></div>
+    <button class="btn" style="width:100%;margin-top:6px">Entrar</button>
+  </form>
+</div>
+
+<div id="app" class="wrap hidden">
+  <header>
+    <h1>Lista do que não pode faltar na viagem 🧳</h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="status-text">ok</span></div>
+  </header>
+
+  <form class="add" id="add-form" autocomplete="off">
+    <input id="new-item" placeholder="Adicionar item…" aria-label="Novo item" enterkeyhint="done">
+    <select id="new-item-cat" aria-label="Categoria"></select>
+    <button class="btn" aria-label="Adicionar">+</button>
+  </form>
+
+  <div id="cats"></div>
+  <button class="btn ghost" id="new-cat">+ Nova categoria</button>
+</div>
+
+<div class="sheet-bg" id="sheet-bg">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm'
+
+const SUPABASE_URL = 'https://lmklexkayliugstaxhlm.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_YL776vP-VzJK9AoKIhaJUw_uxAE_gWE'
+// "Senha" só no front: guardamos o hash, não o valor. A chave dos dados é outro hash da senha.
+const GATE_HASH = '5801a41826fa8f3b0a55c973292ad6473d8da551384d1e5428b86f13d61901af'
+const STORE = 'lista-viagem-pwd'
+
+const $ = s => document.querySelector(s)
+const sha256 = async s => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))]
+  .map(b => b.toString(16).padStart(2, '0')).join('')
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const lsGet = k => { try { return localStorage.getItem(k) } catch { return null } }
+const lsSet = (k, v) => { try { localStorage.setItem(k, v) } catch {} }
+
+let db, channel, LIST_KEY
+let cats = [], items = []
+let dragging = false, pendingReload = false, catsSortable = null
+
+// ---------- gate ----------
+async function tryPassword(pwd) {
+  if (await sha256('viagem-gate:' + pwd) !== GATE_HASH) return false
+  LIST_KEY = await sha256('viagem-data:' + pwd)
+  lsSet(STORE, pwd)
+  $('#gate').classList.add('hidden')
+  $('#app').classList.remove('hidden')
+  start()
+  return true
+}
+$('#gate-form').addEventListener('submit', async e => {
+  e.preventDefault()
+  if (!(await tryPassword($('#pwd').value.trim()))) {
+    $('#gate-err').textContent = 'Senha errada'
+    $('#pwd').select()
+  }
+})
+const saved = lsGet(STORE)
+if (saved) tryPassword(saved)
+
+// ---------- data ----------
+function setStatus(kind, text) {
+  $('#dot').className = 'dot' + (kind === 'ok' ? '' : ' ' + kind)
+  $('#status-text').textContent = text
+}
+
+async function start() {
+  db = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    global: { headers: { 'x-list-key': LIST_KEY } },
+    auth: { persistSession: false },
+  })
+  channel = db.channel('lista-' + LIST_KEY, { config: { broadcast: { self: false } } })
+  channel.on('broadcast', { event: 'changed' }, () => load()).subscribe()
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load() })
+  setInterval(() => { if (!document.hidden) load() }, 20000)
+  await load()
+}
+
+async function load() {
+  if (dragging) { pendingReload = true; return }
+  const [c, i] = await Promise.all([
+    db.from('categories').select('*').order('pos').order('created_at'),
+    db.from('items').select('*').order('pos').order('created_at'),
+  ])
+  if (c.error || i.error) { setStatus('off', 'sem conexão'); return }
+  cats = c.data; items = i.data
+  setStatus('ok', 'sincronizado')
+  render()
+}
+
+async function write(promise) {
+  setStatus('saving', 'salvando…')
+  const { error } = await promise
+  if (error) { setStatus('off', 'erro ao salvar'); alert('Não consegui salvar: ' + error.message); await load(); return false }
+  setStatus('ok', 'sincronizado')
+  channel?.send({ type: 'broadcast', event: 'changed', payload: {} })
+  return true
+}
+
+const nextPos = list => (list.length ? Math.max(...list.map(x => x.pos)) : 0) + 1
+const itemsIn = catId => items.filter(i => (i.category_id || null) === (catId || null)).sort((a, b) => a.pos - b.pos)
+
+// ---------- render ----------
+function render() {
+  const sel = $('#new-item-cat'), prev = sel.value
+  sel.innerHTML = '<option value="">Sem categoria</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  sel.value = cats.some(c => c.id === prev) ? prev : ''
+
+  const groups = []
+  groups.push({ id: null, name: 'Sem categoria' })
+  groups.push(...cats)
+
+  $('#cats').innerHTML = groups.map(g => {
+    const list = itemsIn(g.id)
+    const left = list.filter(i => !i.done).length
+    return `<section class="cat${g.id ? '' : ' uncat'}" data-cat="${g.id || ''}">
+      <div class="cat-head">
+        ${g.id ? '<span class="icon cat-handle" title="Arrastar categoria">⠿</span>' : ''}
+        <h2>${esc(g.name)}</h2>
+        <span class="count">${left}/${list.length}</span>
+        ${g.id ? `<button class="icon" data-act="cat-menu" data-id="${g.id}" aria-label="Opções da categoria">⋯</button>` : ''}
+      </div>
+      <ul class="items" data-cat="${g.id || ''}">${list.map(i => `
+        <li class="item${i.done ? ' done' : ''}" data-id="${i.id}">
+          <span class="handle" title="Arrastar">⠿</span>
+          <input type="checkbox" class="check" data-act="toggle" ${i.done ? 'checked' : ''} aria-label="Marcar">
+          <span class="text" data-act="item-menu">${esc(i.text)}</span>
+          <button class="icon" data-act="item-menu" aria-label="Mover / editar">⇄</button>
+          <button class="icon" data-act="del-item" aria-label="Excluir">✕</button>
+        </li>`).join('')}</ul>
+    </section>`
+  }).join('')
+
+  document.querySelectorAll('ul.items').forEach(ul => Sortable.create(ul, {
+    group: 'items', handle: '.handle', animation: 150, delay: 0,
+    onStart: () => { dragging = true },
+    onEnd: onItemDrop,
+  }))
+  if (!catsSortable) catsSortable = Sortable.create($('#cats'), {
+    handle: '.cat-handle', animation: 150, draggable: 'section[data-cat]:not([data-cat=""])',
+    onStart: () => { dragging = true },
+    onEnd: onCatDrop,
+  })
+}
+
+function posBetween(before, after) {
+  if (before == null && after == null) return 1
+  if (before == null) return after - 1
+  if (after == null) return before + 1
+  return (before + after) / 2
+}
+
+async function onItemDrop(e) {
+  dragging = false
+  const li = e.item, ul = li.parentElement
+  const id = li.dataset.id
+  const catId = ul.dataset.cat || null
+  const prev = li.previousElementSibling?.dataset.id, next = li.nextElementSibling?.dataset.id
+  const pos = posBetween(items.find(i => i.id === prev)?.pos, items.find(i => i.id === next)?.pos)
+  const it = items.find(i => i.id === id)
+  it.category_id = catId; it.pos = pos
+  await write(db.from('items').update({ category_id: catId, pos }).eq('id', id))
+  pendingReload = false
+  render()
+}
+
+async function onCatDrop(e) {
+  dragging = false
+  const sec = e.item, id = sec.dataset.cat
+  const prev = sec.previousElementSibling?.dataset.cat, next = sec.nextElementSibling?.dataset.cat
+  const pos = posBetween(cats.find(c => c.id === prev)?.pos, cats.find(c => c.id === next)?.pos)
+  const c = cats.find(c => c.id === id); c.pos = pos
+  cats.sort((a, b) => a.pos - b.pos)
+  await write(db.from('categories').update({ pos }).eq('id', id))
+  render()
+}
+
+// ---------- actions ----------
+$('#add-form').addEventListener('submit', async e => {
+  e.preventDefault()
+  const input = $('#new-item'), text = input.value.trim()
+  if (!text) return
+  const catId = $('#new-item-cat').value || null
+  const row = { id: crypto.randomUUID(), list_key: LIST_KEY, text, category_id: catId, done: false, pos: nextPos(itemsIn(catId)) }
+  items.push(row); input.value = ''; render(); input.focus()
+  await write(db.from('items').insert(row))
+})
+
+$('#new-cat').addEventListener('click', async () => {
+  const name = prompt('Nome da categoria:')?.trim()
+  if (!name) return
+  const row = { id: crypto.randomUUID(), list_key: LIST_KEY, name, pos: nextPos(cats) }
+  cats.push(row); render()
+  $('#new-item-cat').value = row.id
+  await write(db.from('categories').insert(row))
+})
+
+$('#cats').addEventListener('click', async e => {
+  const el = e.target.closest('[data-act]'); if (!el) return
+  const act = el.dataset.act
+  const li = el.closest('li.item'), it = li && items.find(i => i.id === li.dataset.id)
+  if (act === 'toggle') {
+    it.done = el.checked; li.classList.toggle('done', it.done); render()
+    await write(db.from('items').update({ done: it.done }).eq('id', it.id))
+  } else if (act === 'del-item') {
+    items = items.filter(i => i.id !== it.id); render()
+    await write(db.from('items').delete().eq('id', it.id))
+  } else if (act === 'item-menu') {
+    itemMenu(it)
+  } else if (act === 'cat-menu') {
+    catMenu(cats.find(c => c.id === el.dataset.id))
+  }
+})
+
+// ---------- sheet ----------
+const sheetBg = $('#sheet-bg'), sheet = $('#sheet')
+const closeSheet = () => sheetBg.classList.remove('open')
+sheetBg.addEventListener('click', e => { if (e.target === sheetBg) closeSheet() })
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet() })
+function openSheet(html, handlers) {
+  sheet.innerHTML = html + '<button class="opt" data-k="close" style="text-align:center">Fechar</button>'
+  sheet.onclick = async e => {
+    const b = e.target.closest('[data-k]'); if (!b) return
+    closeSheet()
+    if (b.dataset.k !== 'close') await handlers(b.dataset.k, b.dataset.v)
+  }
+  sheetBg.classList.add('open')
+}
+
+function itemMenu(it) {
+  const cur = it.category_id || ''
+  const dests = [{ id: '', name: 'Sem categoria' }, ...cats]
+  openSheet(`
+    <h3>${esc(it.text)}</h3>
+    <p class="sub">Mover para</p>
+    ${dests.map(d => `<button class="opt${d.id === cur ? ' cur' : ''}" data-k="move" data-v="${d.id}">${d.id === cur ? '✓ ' : ''}${esc(d.name)}</button>`).join('')}
+    <div class="label">Item</div>
+    <button class="opt" data-k="rename">✏️ Renomear</button>
+    <button class="opt danger" data-k="delete">🗑️ Excluir</button>`,
+  async (k, v) => {
+    if (k === 'move') {
+      const catId = v || null
+      if (catId === (it.category_id || null)) return
+      it.category_id = catId; it.pos = nextPos(itemsIn(catId).filter(i => i.id !== it.id)); render()
+      await write(db.from('items').update({ category_id: catId, pos: it.pos }).eq('id', it.id))
+    } else if (k === 'rename') {
+      const text = prompt('Item:', it.text)?.trim()
+      if (!text || text === it.text) return
+      it.text = text; render()
+      await write(db.from('items').update({ text }).eq('id', it.id))
+    } else if (k === 'delete') {
+      items = items.filter(i => i.id !== it.id); render()
+      await write(db.from('items').delete().eq('id', it.id))
+    }
+  })
+}
+
+function catMenu(c) {
+  const n = itemsIn(c.id).length
+  openSheet(`
+    <h3>${esc(c.name)}</h3>
+    <p class="sub">${n} ${n === 1 ? 'item' : 'itens'}</p>
+    <button class="opt" data-k="rename">✏️ Renomear categoria</button>
+    <button class="opt danger" data-k="delete">🗑️ Excluir categoria${n ? ' (itens vão pra "Sem categoria")' : ''}</button>`,
+  async k => {
+    if (k === 'rename') {
+      const name = prompt('Nome da categoria:', c.name)?.trim()
+      if (!name || name === c.name) return
+      c.name = name; render()
+      await write(db.from('categories').update({ name }).eq('id', c.id))
+    } else if (k === 'delete') {
+      if (n && !confirm(`Excluir "${c.name}"? Os ${n} itens vão pra "Sem categoria".`)) return
+      const base = nextPos(itemsIn(null))
+      itemsIn(c.id).forEach((i, idx) => { i.category_id = null; i.pos = base + idx })
+      cats = cats.filter(x => x.id !== c.id); render()
+      // FK on delete set null cuida dos itens; reordena pro fim de "Sem categoria"
+      const moved = items.filter(i => i.category_id === null && i.pos >= base)
+      await write(db.from('categories').delete().eq('id', c.id))
+      await Promise.all(moved.map(i => db.from('items').update({ pos: i.pos }).eq('id', i.id)))
+    }
+  })
+}
+</script>
+</body>
+</html>
