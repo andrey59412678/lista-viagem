@@ -103,6 +103,12 @@
   .sheet .ask-in:focus { border-color: var(--accent); }
   .sheet .btn.wide { width: 100%; margin-top: 10px; }
   .sheet .btn.danger { background: var(--danger); color: #fff; }
+  .cat-add { display: flex; gap: 6px; padding: 4px 8px 10px; border-top: 1px solid var(--line); }
+  .cat-add input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 6px; outline: none; }
+  .cat-add input::placeholder { color: var(--accent); font-weight: 500; }
+  .cat-add:focus-within { background: var(--bg); }
+  .cat-add button { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 0 14px; font-weight: 600; }
+  .cat-add:not(:focus-within) button { display: none; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -223,6 +229,10 @@ const itemsIn = catId => items.filter(i => (i.category_id || null) === (catId ||
 
 // ---------- render ----------
 function render() {
+  // re-render roda a cada sync; preserva o que está sendo digitado no "adicionar" de uma categoria
+  const act = document.activeElement
+  const typing = act?.closest?.('form.cat-add') ? { cat: act.closest('form').dataset.cat, value: act.closest('form').querySelector('input').value } : null
+
   const sel = $('#new-item-cat'), prev = sel.value
   sel.innerHTML = '<option value="">Sem categoria</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')
   sel.value = cats.some(c => c.id === prev) ? prev : ''
@@ -249,8 +259,17 @@ function render() {
           <button class="icon" data-act="item-menu" aria-label="Mover / editar">⇄</button>
           <button class="icon" data-act="del-item" aria-label="Excluir">✕</button>
         </li>`).join('')}</ul>
+      <form class="cat-add" data-cat="${g.id || ''}" autocomplete="off">
+        <input placeholder="+ Adicionar item" aria-label="Adicionar item em ${esc(g.name)}" enterkeyhint="done">
+        <button aria-label="Adicionar">+</button>
+      </form>
     </section>`
   }).join('')
+
+  if (typing) {
+    const inp = $(`#cats form.cat-add[data-cat="${typing.cat}"] input`)
+    if (inp) { inp.value = typing.value; inp.focus() }
+  }
 
   document.querySelectorAll('ul.items').forEach(ul => Sortable.create(ul, {
     group: 'items', handle: '.handle', animation: 150, delay: 0,
@@ -297,14 +316,28 @@ async function onCatDrop(e) {
 }
 
 // ---------- actions ----------
+async function addItem(text, catId) {
+  const row = { id: crypto.randomUUID(), list_key: LIST_KEY, text, category_id: catId, done: false, pos: nextPos(itemsIn(catId)) }
+  items.push(row); render()
+  await write(db.from('items').insert(row))
+}
+
 $('#add-form').addEventListener('submit', async e => {
   e.preventDefault()
   const input = $('#new-item'), text = input.value.trim()
   if (!text) return
-  const catId = $('#new-item-cat').value || null
-  const row = { id: crypto.randomUUID(), list_key: LIST_KEY, text, category_id: catId, done: false, pos: nextPos(itemsIn(catId)) }
-  items.push(row); input.value = ''; render(); input.focus()
-  await write(db.from('items').insert(row))
+  input.value = ''; input.focus()
+  await addItem(text, $('#new-item-cat').value || null)
+})
+
+// fica focado depois de adicionar, pra emendar vários itens na mesma categoria
+$('#cats').addEventListener('submit', async e => {
+  const form = e.target.closest('form.cat-add'); if (!form) return
+  e.preventDefault()
+  const input = form.querySelector('input'), text = input.value.trim()
+  if (!text) return
+  input.value = ''
+  await addItem(text, form.dataset.cat || null)
 })
 
 $('#new-cat').addEventListener('click', async () => {
