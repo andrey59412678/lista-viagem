@@ -99,6 +99,10 @@
   .sheet .opt.cur { outline: 1.5px solid var(--accent); }
   .sheet .opt.danger { color: var(--danger); }
   .sheet .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 2px 2px; }
+  .sheet .ask-in { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); outline: none; margin-top: 8px; }
+  .sheet .ask-in:focus { border-color: var(--accent); }
+  .sheet .btn.wide { width: 100%; margin-top: 10px; }
+  .sheet .btn.danger { background: var(--danger); color: #fff; }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -304,7 +308,7 @@ $('#add-form').addEventListener('submit', async e => {
 })
 
 $('#new-cat').addEventListener('click', async () => {
-  const name = prompt('Nome da categoria:')?.trim()
+  const name = await askText('Nova categoria', '', 'Criar')
   if (!name) return
   const row = { id: crypto.randomUUID(), list_key: LIST_KEY, name, pos: nextPos(cats) }
   cats.push(row); render()
@@ -331,10 +335,12 @@ $('#cats').addEventListener('click', async e => {
 
 // ---------- sheet ----------
 const sheetBg = $('#sheet-bg'), sheet = $('#sheet')
-const closeSheet = () => sheetBg.classList.remove('open')
+let onDismiss = null
+const closeSheet = () => { sheetBg.classList.remove('open'); const f = onDismiss; onDismiss = null; f?.() }
 sheetBg.addEventListener('click', e => { if (e.target === sheetBg) closeSheet() })
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet() })
 function openSheet(html, handlers) {
+  onDismiss = null
   sheet.innerHTML = html + '<button class="opt" data-k="close" style="text-align:center">Fechar</button>'
   sheet.onclick = async e => {
     const b = e.target.closest('[data-k]'); if (!b) return
@@ -342,6 +348,36 @@ function openSheet(html, handlers) {
     if (b.dataset.k !== 'close') await handlers(b.dataset.k, b.dataset.v)
   }
   sheetBg.classList.add('open')
+}
+
+// prompt()/confirm() somem em navegadores embutidos (WhatsApp, Instagram); tudo passa pela folha
+function askText(title, value, okLabel = 'Salvar') {
+  return new Promise(resolve => {
+    let done = false
+    const finish = v => { if (done) return; done = true; closeSheet(); resolve(v) }
+    sheet.innerHTML = `<form id="ask"><h3>${esc(title)}</h3>
+      <input id="ask-in" class="ask-in" maxlength="200" enterkeyhint="done" value="${esc(value)}">
+      <button class="btn wide">${esc(okLabel)}</button></form>
+      <button class="opt" data-k="close" style="text-align:center">Cancelar</button>`
+    sheet.onclick = e => { if (e.target.closest('[data-k=close]')) finish(null) }
+    sheet.querySelector('#ask').onsubmit = e => { e.preventDefault(); finish(sheet.querySelector('#ask-in').value.trim() || null) }
+    sheetBg.classList.add('open')
+    onDismiss = () => finish(null)
+    const inp = sheet.querySelector('#ask-in'); inp.focus(); inp.select()
+  })
+}
+
+function askConfirm(title, text, okLabel) {
+  return new Promise(resolve => {
+    let done = false
+    const finish = v => { if (done) return; done = true; closeSheet(); resolve(v) }
+    sheet.innerHTML = `<h3>${esc(title)}</h3><p class="sub">${esc(text)}</p>
+      <button class="btn wide danger" data-k="ok">${esc(okLabel)}</button>
+      <button class="opt" data-k="close" style="text-align:center">Cancelar</button>`
+    sheet.onclick = e => { const b = e.target.closest('[data-k]'); if (b) finish(b.dataset.k === 'ok') }
+    sheetBg.classList.add('open')
+    onDismiss = () => finish(false)
+  })
 }
 
 function itemMenu(it) {
@@ -361,7 +397,7 @@ function itemMenu(it) {
       it.category_id = catId; it.pos = nextPos(itemsIn(catId).filter(i => i.id !== it.id)); render()
       await write(db.from('items').update({ category_id: catId, pos: it.pos }).eq('id', it.id))
     } else if (k === 'rename') {
-      const text = prompt('Item:', it.text)?.trim()
+      const text = await askText('Renomear item', it.text)
       if (!text || text === it.text) return
       it.text = text; render()
       await write(db.from('items').update({ text }).eq('id', it.id))
@@ -381,12 +417,12 @@ function catMenu(c) {
     <button class="opt danger" data-k="delete">🗑️ Excluir categoria${n ? ' (itens vão pra "Sem categoria")' : ''}</button>`,
   async k => {
     if (k === 'rename') {
-      const name = prompt('Nome da categoria:', c.name)?.trim()
+      const name = await askText('Renomear categoria', c.name)
       if (!name || name === c.name) return
       c.name = name; render()
       await write(db.from('categories').update({ name }).eq('id', c.id))
     } else if (k === 'delete') {
-      if (n && !confirm(`Excluir "${c.name}"? Os ${n} itens vão pra "Sem categoria".`)) return
+      if (n && !(await askConfirm(`Excluir "${c.name}"?`, `Os ${n} itens vão pra "Sem categoria".`, 'Excluir'))) return
       const base = nextPos(itemsIn(null))
       itemsIn(c.id).forEach((i, idx) => { i.category_id = null; i.pos = base + idx })
       cats = cats.filter(x => x.id !== c.id); render()
